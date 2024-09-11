@@ -5,8 +5,8 @@ import requests
 import secrets  # To generate a random `state` value
 
 # Load GitHub OAuth details from environment variables
-GITHUB_CLIENT_ID = os.getenv("GH_CLIENT_ID")
-GITHUB_CLIENT_SECRET = os.getenv("GH_CLIENT_SECRET")
+GITHUB_CLIENT_ID = os.environ["GH_CLIENT_ID"]
+GITHUB_CLIENT_SECRET = os.environ["GH_CLIENT_SECRET"]
 REDIRECT_URI = "https://gh-app-demo.streamlit.app/"  # The same as your GitHub OAuth redirect URI
 ORG_NAME = "developmentseed"  # The organization you want to check membership for
 
