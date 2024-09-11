@@ -79,12 +79,14 @@ st.title("GitHub OAuth SSO Login")
 if code := st.query_params.get("code"):
     # Extract the state from query params
     state = st.query_params.get("state", None)
-    st.markdown(
-        "\n".join([f"* `{code=}`", f"* `{state=}`", f"* `{GITHUB_CLIENT_ID=}`", f"* `{GITHUB_CLIENT_SECRET=}`",]))
+
     # Exchange the code for an access token
     token = get_access_token(code, state)
 
     if token:
+        # Clear query params
+        st.query_params.clear()
+        
         user_info = get_github_user_info(
             token['access_token'])  # Fetch user info
 
