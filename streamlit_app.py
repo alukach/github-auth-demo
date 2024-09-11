@@ -1,8 +1,6 @@
 import os
 import secrets  # To generate a random `state` value
-from datetime import datetime, timedelta
 
-from streamlit_cookies_manager import EncryptedCookieManager
 import streamlit as st
 from authlib.integrations.requests_client import OAuth2Session
 import requests
@@ -14,18 +12,6 @@ GITHUB_CLIENT_SECRET = os.environ["GH_CLIENT_SECRET"]
 # The same as your GitHub OAuth redirect URI
 REDIRECT_URI = "https://gh-app-demo.streamlit.app/"
 ORG_NAME = "developmentseed"  # The organization you want to check membership for
-
-cookies = EncryptedCookieManager(
-    # This prefix will get added to all your cookie names.
-    # This way you can run your app on Streamlit Cloud without cookie name clashes with other apps.
-    prefix=REDIRECT_URI,
-    # We encrypt the cookie with our client secret.
-    password=GITHUB_CLIENT_SECRET,
-)
-cookies._cookie_manager._default_expiry = datetime.now() + timedelta(days=1)
-if not cookies.ready():
-    # Wait for the component to load and send us current cookies.
-    st.stop()
 
 
 def get_oauth_client():
@@ -39,8 +25,7 @@ def get_github_auth_url():
 
     # Generate a random `state` value and store it in Streamlit session state
     state = secrets.token_urlsafe(16)
-    cookies['oauth_state'] = state
-    cookies.save()
+    st.session_state['oauth_state'] = state
 
     authorization_url, _ = oauth_client.create_authorization_url(
         "https://github.com/login/oauth/authorize",
@@ -55,25 +40,24 @@ def get_access_token(code, state):
     oauth_client = get_oauth_client()
 
     # Verify that the `state` from the redirect matches the stored `state`
-    if state != cookies.get('oauth_state'):
-        st.error("State mismatch: Potential CSRF attack detected.")
-        return None
+    # if state != st.session_state.get('oauth_state'):
+    #     st.error("State mismatch: Potential CSRF attack detected.")
+    #     return None
 
-    return oauth_client.fetch_token(
+    token = oauth_client.fetch_token(
         "https://github.com/login/oauth/access_token",
         code=code,
         client_id=GITHUB_CLIENT_ID,
         client_secret=GITHUB_CLIENT_SECRET
         # redirect_uri=
     )
-
+    return token
 
 def get_github_user_info(token):
     """ Fetch user information from GitHub """
     headers = {'Authorization': f'token {token}'}
     response = requests.get("https://api.github.com/user", headers=headers)
     return response.json()
-
 
 def is_user_in_org(token, org_name, username):
     """ Check if user is a member of the organization """
@@ -98,8 +82,8 @@ if code := st.query_params.get("code"):
         # Clear query params
         st.query_params.clear()
 
-        # Fetch user info
-        user_info = get_github_user_info(token['access_token'])
+        user_info = get_github_user_info(
+            token['access_token'])  # Fetch user info
 
         # Check if the user is a member of the organization
         if is_user_in_org(token['access_token'], ORG_NAME, user_info['login']):
@@ -112,3 +96,4 @@ else:
     # Display login button
     auth_url = get_github_auth_url()
     st.markdown(f"[Login with GitHub]({auth_url})")
+    # st.markdown(f'Please <a href="{auth_url}" target="_self">Login with GitHub</a>', unsafe_allow_html=True)
