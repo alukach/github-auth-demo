@@ -78,4 +78,5 @@ if code := st.query_params.get("code"):
 else:
     # Display login button
     auth_url = get_github_auth_url()
-    st.markdown(f'Please <a href="{auth_url}" target="_self">Login with GitHub</a>', unsafe_allow_html=True)
+    st.markdown(f"[Login with GitHub]({auth_url})")
+    # st.markdown(f'Please <a href="{auth_url}" target="_self">Login with GitHub</a>', unsafe_allow_html=True)
