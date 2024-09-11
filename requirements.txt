@@ -1,3 +1,2 @@
 streamlit
 authlib
-streamlit-cookies-manager
