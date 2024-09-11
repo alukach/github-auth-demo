@@ -82,13 +82,20 @@ def is_user_in_org(token, org_name, username):
     return response.status_code == 200
 
 
-# Views
-def home(user_info):
+# App
+# Streamlit UI
+st.title("GitHub OAuth SSO Login")
+
+# If we have a user, we're logged in...
+if user_info := cookies.get('user_info'):
     st.success(f"Welcome {user_info['login']}")
     st.image(user_info['avatar_url'])
 
-
-def oauth_callback(code: str, state: str):
+# Check if the 'code' is present in the query params after GitHub redirects back
+elif code := st.query_params.get("code"):
+    # Extract the state from query params
+    state = st.query_params.get("state", None)
+    
     # Clear query params
     st.query_params.clear()
 
@@ -106,27 +113,8 @@ def oauth_callback(code: str, state: str):
             st.error(
                 f"Access denied: {user_info['login']} is not a member of the {ORG_NAME} organization.")
 
-
-def login_view():
+# Handle unauthenticad
+else:
     # Display login button
     auth_url = get_github_auth_url()
     st.markdown(f"[Login with GitHub]({auth_url})")
-
-
-# App
-# Streamlit UI
-st.title("GitHub OAuth SSO Login")
-
-# If we have a user, we're logged in...
-if user_info := cookies.get('user_info'):
-    home(json.loads(user_info))
-
-# Check if the 'code' is present in the query params after GitHub redirects back
-elif code := st.query_params.get("code"):
-    # Extract the state from query params
-    state = st.query_params.get("state", None)
-    oauth_callback(code, state)
-
-# Handle unauthenticad
-else:
-    login_view()
