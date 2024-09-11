@@ -53,6 +53,8 @@ def get_github_auth_url():
 def get_access_token(code, state):
     """ Get access token from GitHub """
     # Verify that the `state` from the redirect matches the stored `state`
+    st.markdown(f'{state=}')
+    st.markdown(f"{cookies.get('oauth_state')=}")
     if state != cookies.get('oauth_state'):
         st.error("State mismatch: Potential CSRF attack detected.")
         return None
