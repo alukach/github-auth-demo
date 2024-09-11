@@ -1,4 +1,5 @@
 import os
+import json
 import secrets  # To generate a random `state` value
 from datetime import datetime, timedelta
 
@@ -53,8 +54,6 @@ def get_github_auth_url():
 def get_access_token(code, state):
     """ Get access token from GitHub """
     # Verify that the `state` from the redirect matches the stored `state`
-    st.markdown(f'{state=}')
-    st.markdown(f"{cookies.get('oauth_state')=}")
     if state != cookies.get('oauth_state'):
         st.error("State mismatch: Potential CSRF attack detected.")
         return None
@@ -102,8 +101,8 @@ def oauth_callback(code: str, state: str):
     # Check if the user is a member of the organization
     if is_user_in_org(token['access_token'], ORG_NAME, user_info['login']):
         # Persist
-        cookies['token'] = token
-        cookies['user_info'] = user_info
+        cookies['token'] = json.dumps(token)
+        cookies['user_info'] = json.dumps(user_info)
     else:
         st.error(
             f"Access denied: {user_info['login']} is not a member of the {ORG_NAME} organization.")
@@ -121,7 +120,7 @@ st.title("GitHub OAuth SSO Login")
 
 # If we have a user, we're logged in...
 if user_info := cookies.get('user_info'):
-    home(user_info)
+    home(json.loads(user_info))
 
 # Check if the 'code' is present in the query params after GitHub redirects back
 elif code := st.query_params.get("code"):
