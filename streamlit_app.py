@@ -1,5 +1,4 @@
 import os
-import json
 import secrets  # To generate a random `state` value
 from datetime import datetime, timedelta
 
@@ -28,15 +27,15 @@ if not cookies.ready():
     # Wait for the component to load and send us current cookies.
     st.stop()
 
-oauth_client = OAuth2Session(
-    GITHUB_CLIENT_ID,
-    GITHUB_CLIENT_SECRET,
-    redirect_uri=REDIRECT_URI
-)
+
+def get_oauth_client():
+    """ OAuth2 client session """
+    return OAuth2Session(GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, redirect_uri=REDIRECT_URI)
 
 
 def get_github_auth_url():
     """ Get GitHub authorization URL with a random `state` value """
+    oauth_client = get_oauth_client()
 
     # Generate a random `state` value and store it in Streamlit session state
     state = secrets.token_urlsafe(16)
@@ -53,9 +52,11 @@ def get_github_auth_url():
 
 def get_access_token(code, state):
     """ Get access token from GitHub """
+    oauth_client = get_oauth_client()
+
     # Verify that the `state` from the redirect matches the stored `state`
     if state != cookies.get('oauth_state'):
-        st.error(f"State mismatch: Potential CSRF attack detected. ({state!r} does not equal {cookies.get('oauth_state')!r})")
+        st.error("State mismatch: Potential CSRF attack detected.")
         return None
 
     return oauth_client.fetch_token(
@@ -82,38 +83,31 @@ def is_user_in_org(token, org_name, username):
     return response.status_code == 200
 
 
-# App
 # Streamlit UI
 st.title("GitHub OAuth SSO Login")
 
-# If we have a user, we're logged in...
-if user_info := cookies.get('user_info'):
-    st.success(f"Welcome {user_info['login']}")
-    st.image(user_info['avatar_url'])
-
 # Check if the 'code' is present in the query params after GitHub redirects back
-elif code := st.query_params.get("code"):
+if code := st.query_params.get("code"):
     # Extract the state from query params
     state = st.query_params.get("state", None)
-    
-    # Clear query params
-    st.query_params.clear()
 
     # Exchange the code for an access token
-    if token := get_access_token(code, state):
+    token = get_access_token(code, state)
+
+    if token:
+        # Clear query params
+        st.query_params.clear()
+
         # Fetch user info
         user_info = get_github_user_info(token['access_token'])
 
         # Check if the user is a member of the organization
         if is_user_in_org(token['access_token'], ORG_NAME, user_info['login']):
-            # Persist
-            cookies['token'] = json.dumps(token)
-            cookies['user_info'] = json.dumps(user_info)
+            st.success(f"Welcome {user_info['login']}")
+            st.image(user_info['avatar_url'])
         else:
             st.error(
                 f"Access denied: {user_info['login']} is not a member of the {ORG_NAME} organization.")
-
-# Handle unauthenticad
 else:
     # Display login button
     auth_url = get_github_auth_url()
