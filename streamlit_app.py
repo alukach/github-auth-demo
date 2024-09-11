@@ -1,5 +1,6 @@
 import os
 import secrets  # To generate a random `state` value
+from datetime import datetime, timedelta
 
 from streamlit_cookies_manager import EncryptedCookieManager
 import streamlit as st
@@ -21,19 +22,20 @@ cookies = EncryptedCookieManager(
     # We encrypt the cookie with our client secret.
     password=GITHUB_CLIENT_SECRET,
 )
+cookies._cookie_manager._default_expiry = datetime.now() + timedelta(days=1)
 if not cookies.ready():
     # Wait for the component to load and send us current cookies.
     st.stop()
 
-
-def get_oauth_client():
-    """ OAuth2 client session """
-    return OAuth2Session(GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, redirect_uri=REDIRECT_URI)
+oauth_client = OAuth2Session(
+    GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET,
+    redirect_uri=REDIRECT_URI
+)
 
 
 def get_github_auth_url():
     """ Get GitHub authorization URL with a random `state` value """
-    oauth_client = get_oauth_client()
 
     # Generate a random `state` value and store it in Streamlit session state
     state = secrets.token_urlsafe(16)
@@ -50,21 +52,18 @@ def get_github_auth_url():
 
 def get_access_token(code, state):
     """ Get access token from GitHub """
-    oauth_client = get_oauth_client()
-
     # Verify that the `state` from the redirect matches the stored `state`
     if state != cookies.get('oauth_state'):
         st.error("State mismatch: Potential CSRF attack detected.")
         return None
 
-    token = oauth_client.fetch_token(
+    return oauth_client.fetch_token(
         "https://github.com/login/oauth/access_token",
         code=code,
         client_id=GITHUB_CLIENT_ID,
         client_secret=GITHUB_CLIENT_SECRET
         # redirect_uri=
     )
-    return token
 
 
 def get_github_user_info(token):
@@ -82,33 +81,55 @@ def is_user_in_org(token, org_name, username):
     return response.status_code == 200
 
 
-# Streamlit UI
-st.title("GitHub OAuth SSO Login")
+# Views
+def home(user_info):
+    st.success(f"Welcome {user_info['login']}")
+    st.image(user_info['avatar_url'])
 
-# Check if the 'code' is present in the query params after GitHub redirects back
-if code := st.query_params.get("code"):
-    # Extract the state from query params
-    state = st.query_params.get("state", None)
+
+def oauth_callback(code: str, state: str):
+    # Clear query params
+    st.query_params.clear()
 
     # Exchange the code for an access token
     token = get_access_token(code, state)
 
-    if token:
-        # Clear query params
-        st.query_params.clear()
+    # Fetch user info
+    user_info = get_github_user_info(token['access_token'])
 
-        # Fetch user info
-        user_info = get_github_user_info(token['access_token'])
+    # Check if the user is a member of the organization
+    if is_user_in_org(token['access_token'], ORG_NAME, user_info['login']):
+        # Persist
+        cookies['token'] = token
+        cookies['user_info'] = user_info
+    else:
+        st.error(
+            f"Access denied: {user_info['login']} is not a member of the {ORG_NAME} organization.")
 
-        # Check if the user is a member of the organization
-        if is_user_in_org(token['access_token'], ORG_NAME, user_info['login']):
-            st.success(f"Welcome {user_info['login']}")
-            st.image(user_info['avatar_url'])
-        else:
-            st.error(
-                f"Access denied: {user_info['login']} is not a member of the {ORG_NAME} organization.")
-else:
+
+def login_view():
     # Display login button
     auth_url = get_github_auth_url()
     st.markdown(f"[Login with GitHub]({auth_url})")
-    # st.markdown(f'Please <a href="{auth_url}" target="_self">Login with GitHub</a>', unsafe_allow_html=True)
+
+
+# App
+def main():
+    # Streamlit UI
+    st.title("GitHub OAuth SSO Login")
+
+    # If we have a user, we're logged in...
+    if user_info := cookies.get('user_info'):
+        return home(user_info)
+
+    # Check if the 'code' is present in the query params after GitHub redirects back
+    if code := st.query_params.get("code"):
+        # Extract the state from query params
+        state = st.query_params.get("state", None)
+        return oauth_callback(code, state)
+
+    # Handle unauthenticad
+    return login_view()
+
+
+main()
