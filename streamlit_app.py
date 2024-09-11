@@ -114,22 +114,19 @@ def login_view():
 
 
 # App
-def main():
-    # Streamlit UI
-    st.title("GitHub OAuth SSO Login")
+# Streamlit UI
+st.title("GitHub OAuth SSO Login")
 
-    # If we have a user, we're logged in...
-    if user_info := cookies.get('user_info'):
-        return home(user_info)
+# If we have a user, we're logged in...
+if user_info := cookies.get('user_info'):
+    home(user_info)
 
-    # Check if the 'code' is present in the query params after GitHub redirects back
-    if code := st.query_params.get("code"):
-        # Extract the state from query params
-        state = st.query_params.get("state", None)
-        return oauth_callback(code, state)
+# Check if the 'code' is present in the query params after GitHub redirects back
+elif code := st.query_params.get("code"):
+    # Extract the state from query params
+    state = st.query_params.get("state", None)
+    oauth_callback(code, state)
 
-    # Handle unauthenticad
-    return login_view()
-
-
-main()
+# Handle unauthenticad
+else:
+    login_view()
