@@ -63,7 +63,6 @@ st.title("GitHub OAuth SSO Login")
 # Check if the 'code' is present in the query params after GitHub redirects back
 if code := st.query_params.get("code"):
     state = st.query_params.get("state", None)  # Extract the state from query params
-    
     token = get_access_token(code, state)  # Exchange the code for an access token
     
     if token:
@@ -78,5 +77,6 @@ if code := st.query_params.get("code"):
 else:
     # Display login button
     auth_url = get_github_auth_url()
+    st.markdown(f"{GITHUB_CLIENT_ID=}")
     st.markdown(f"[Login with GitHub]({auth_url})")
     # st.markdown(f'Please <a href="{auth_url}" target="_self">Login with GitHub</a>', unsafe_allow_html=True)
