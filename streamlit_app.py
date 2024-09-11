@@ -34,9 +34,9 @@ def get_access_token(code, state):
     oauth_client = get_oauth_client()
     
     # Verify that the `state` from the redirect matches the stored `state`
-    if state != st.session_state.get('oauth_state'):
-        st.error("State mismatch: Potential CSRF attack detected.")
-        return None
+    # if state != st.session_state.get('oauth_state'):
+    #     st.error("State mismatch: Potential CSRF attack detected.")
+    #     return None
     
     token = oauth_client.fetch_token(
         "https://github.com/login/oauth/access_token",
