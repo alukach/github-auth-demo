@@ -55,7 +55,7 @@ def get_access_token(code, state):
     """ Get access token from GitHub """
     # Verify that the `state` from the redirect matches the stored `state`
     if state != cookies.get('oauth_state'):
-        st.error("State mismatch: Potential CSRF attack detected.")
+        st.error(f"State mismatch: Potential CSRF attack detected. ({state!r} does not equal {cookies.get('oauth_state')!r})")
         return None
 
     return oauth_client.fetch_token(
@@ -93,19 +93,18 @@ def oauth_callback(code: str, state: str):
     st.query_params.clear()
 
     # Exchange the code for an access token
-    token = get_access_token(code, state)
+    if token := get_access_token(code, state):
+        # Fetch user info
+        user_info = get_github_user_info(token['access_token'])
 
-    # Fetch user info
-    user_info = get_github_user_info(token['access_token'])
-
-    # Check if the user is a member of the organization
-    if is_user_in_org(token['access_token'], ORG_NAME, user_info['login']):
-        # Persist
-        cookies['token'] = json.dumps(token)
-        cookies['user_info'] = json.dumps(user_info)
-    else:
-        st.error(
-            f"Access denied: {user_info['login']} is not a member of the {ORG_NAME} organization.")
+        # Check if the user is a member of the organization
+        if is_user_in_org(token['access_token'], ORG_NAME, user_info['login']):
+            # Persist
+            cookies['token'] = json.dumps(token)
+            cookies['user_info'] = json.dumps(user_info)
+        else:
+            st.error(
+                f"Access denied: {user_info['login']} is not a member of the {ORG_NAME} organization.")
 
 
 def login_view():
